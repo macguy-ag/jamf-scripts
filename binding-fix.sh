@@ -19,7 +19,7 @@ serial=`ioreg -c IOPlatformExpertDevice -d 2 | awk -F\" '/IOPlatformSerialNumber
 asset_name=`curl -s -X GET "$url?search=$serial" -H "$auth" -H 'Content-Type: application/json' | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["rows"][0]["asset_tag"]'`
 
 # Set the local hostname
-printf "Setting the local hostname to match this machine's asset tag.\n"
+echo "Setting the local hostname to match this machine's asset tag.\n"
 declare -a names=("HostName" "LocalHostName" "ComputerName")
 for nameType in "${names[@]}"
 do
@@ -31,15 +31,15 @@ thisComputerName=`scutil --get ComputerName`
 existsInAD=$(ldapsearch -LLL -h $domain -x -D $4@$domain -w $5 -b $searchBase name=$thisComputerName | grep name | awk '{print toupper($2)}')
 
 # Delete the existing AD account if one exists and then bind it to AD, otherwise just bind it to AD
-printf "Determine if this Mac exists in AD.\n"
+echo "Determine if this Mac exists in AD.\n"
 if [ $existsInAD == $thisComputerName ]
 then
-    printf "Forcibly removing this Mac from AD.\n"
+    echo "Forcibly removing this Mac from AD.\n"
     dsconfigad -force -remove -username $4 -password $5
-    printf "Binding this Mac to AD.\n"
+    echo "Binding this Mac to AD.\n"
     bindToAD
 else
-    printf "Binding this Mac to AD.\n"
+    echo "Binding this Mac to AD.\n"
     bindToAD
 fi
 
