@@ -26,27 +26,32 @@ printf "Getting the asset tag matching the local serial number from asset manage
 asset_name=`curl -u $fsAPIKey: -X GET "$fsURL?field=serial_number&q=$serial" -H 'Content-Type: application/json' | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["config_items"][0]["name"]'`
 
 # Set the local hostname
-printf "Setting the local hostname to match this machine's asset tag.\n"
-scutil --set HostName "$asset_name"
-scutil --set LocalHostName "$asset_name"
-scutil --set ComputerName "$asset_name"
+echo "Setting the local hostname to match this machine's asset tag.\n"
+declare -a names=("HostName" "LocalHostName" "ComputerName")
+for nameType in "${names[@]}"
+do
+    scutil --set $nameType "$asset_name"
+done
 thisComputerName=`scutil --get ComputerName`
 
 # Determine if this Mac has an existing AD account
-existsInAD=$(ldapsearch -LLL -h $domain -x -D ad_access@$domain -w jive-W1ne-bates -b $searchBase name=$computerName | grep name | awk '{print toupper($2)}')
+existsInAD=$(ldapsearch -LLL -h $domain -x -D $4@$domain -w $5 -b $searchBase name=$thisComputerName | grep name | awk '{print toupper($2)}')
 
 # Delete the existing AD account if one exists and then bind it to AD, otherwise just bind it to AD
-printf "Determine if this Mac exists in AD.\n"
-if [ $existsInAD == $computerName ]
+echo "Determine if this Mac exists in AD.\n"
+if [ $existsInAD == $thisComputerName ]
 then
-    printf "Forcibly removing this Mac from AD.\n"
+    echo "Forcibly removing this Mac from AD.\n"
     dsconfigad -force -remove -username $4 -password $5
-    printf "Binding this Mac to AD.\n"
+    echo "Binding this Mac to AD.\n"
     bindToAD
 else
-    printf "Binding this Mac to AD.\n"
+    echo "Binding this Mac to AD.\n"
     bindToAD
 fi
+
+# Fix NetBIOSName
+/usr/bin/defaults write /Library/Preferences/SystemConfiguration/com.apple.smb.server.plist NetBIOSName -string "$thisComputerName"
 
 # Define array of policy IDs
 declare -a policies=("7"     # NoMAD
