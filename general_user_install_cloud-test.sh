@@ -10,7 +10,7 @@ computersOU="OU=Computers GPO push,DC=ad,DC=thebernardgroup,DC=com"
 
 # Define functions
 function bindToAD {
-    dsconfigad -a $(scutil --get LocalHostName) -u $4 -p $5 -ou $computersOU -domain $domain -mobile enable -mobileconfirm disable -localhome enable -useuncpath enable -groups "Domain Admins,Enterprise Admins" -alldomains enable -force
+    dsconfigad -a $(scutil --get LocalHostName) -username "ad_access" -password "jive-W1ne-bates" -ou "OU=Computers GPO push,DC=ad,DC=thebernardgroup,DC=com" -domain "ad.thebernardgroup.com" -mobile enable -mobileconfirm disable -localhome enable -useuncpath enable -groups "Domain Admins,Enterprise Admins" -alldomains enable -force
 }
 
 # Initial timestamp (testing only)

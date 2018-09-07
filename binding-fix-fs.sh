@@ -44,7 +44,7 @@ else
 fi
 
 # Fix NetBIOSName
-/usr/bin/defaults write /Library/Preferences/SystemConfiguration/com.apple.smb.server.plist NetBIOSName -string "$local_name"
+/usr/bin/defaults write /Library/Preferences/SystemConfiguration/com.apple.smb.server.plist NetBIOSName -string "$thisComputerName"
 
 # Update Jamf inventory
 /usr/local/bin/jamf recon
