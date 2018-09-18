@@ -15,7 +15,7 @@ function bindToAD {
 # Get local serial number and store it in a variable
 serial=`/usr/sbin/ioreg -c IOPlatformExpertDevice -d 2 | awk -F\" '/IOPlatformSerialNumber/{print $(NF-1)}'`
 
-# Get the asset tag matching the local serial number from Snipe-It asset management
+# Get the asset tag matching the local serial number from Freshservice
 asset_name=`curl -u $apikey: -X GET "$url?field=serial_number&q=$serial" -H 'Content-Type: application/json' | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["config_items"][0]["name"]'`
 
 # Set the local hostname
