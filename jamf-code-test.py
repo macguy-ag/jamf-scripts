@@ -5,7 +5,7 @@ conn = http.client.HTTPSConnection("https://jss.thebernardgroup.com")
 
 
 headers = {
-'authorization': "Basic apiuser:shear-shank-greg"
+'authorization': "Basic <removedcreds>"
 }
 
 
