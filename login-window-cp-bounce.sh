@@ -18,8 +18,10 @@ echo $mac_id
 mac_xml="<computer_group><computers><computer><id>$mac_id</id></computer></computers></computer_group>"
 echo $mac_xml
 
+
+
 # Add this Mac to the specified static computer group
-curl -sku $jss_user:$jss_pass https://$jss/JSSResource/computergroups/id/$group_id -X PUT -H Content-type:application/xml --data $mac_xml
+# curl -sku $jss_user:$jss_pass https://$jss/JSSResource/computergroups/id/$group_id -X PUT -H Content-type:application/xml --data $mac_xml
 
 # Wait 10 seconds to ensure the desired action is completed
 # sleep 10
