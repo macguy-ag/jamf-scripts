@@ -1,21 +1,60 @@
 #!/bin/bash
 
-# Define variables
-fsURL="https://thebernardgroup.freshservice.com/cmdb/items/list.json"
-fsAPIKey="SfCEAQl4R14UOZD5GY8"
-jss="jss.thebernardgroup.com"
-jss_user="apiuser"
-jss_pass="shear-shank-greg"
-group_id="85"
-# computerName=`scutil --get ComputerName`
-domain="ad.thebernardgroup.com"
-searchBase="DC=ad,DC=thebernardgroup,DC=com"
-computersOU="OU=Computers GPO push,DC=ad,DC=thebernardgroup,DC=com"
+# Extract credetials from script parameters and store them as variables
+
+# ad_domain, ad_user & ad_pass
+ad_creds=$(echo $4 | tr "|+|" "\n")
+ad_counter=1
+for ad_cred in $ad_creds
+do
+    if [ $ad_counter == 1 ]; then
+        ad_domain=$ad_cred
+    elif [ $ad_counter == 2 ]; then
+        ad_user=$ad_cred
+    elif [ $ad_counter == 3 ]; then
+        ad_pass=$ad_cred
+    fi
+    ad_counter=$((ad_counter+=1))
+done
+
+# fs_user & fs_pass
+fs_creds=$(echo $5 | tr "|+|" "\n")
+fs_counter=1
+for fs_cred in $fs_creds
+do
+    if [ $fs_counter == 1 ]; then
+        fs_url=$fs_cred
+    elif [ $fs_counter == 2 ]; then
+        fs_api_key=$fs_cred
+    fi
+    fs_counter=$((fs_counter+=1))
+done
+
+# jss_url, jss_user & jss_pass
+jss_creds=$(echo $6 | tr "|+|" "\n")
+jss_counter=1
+for jss_cred in $jss_creds
+do
+    if [ $jss_counter == 1 ]; then
+        jss_url=$jss_cred
+    elif [ $jss_counter == 2 ]; then
+        jss_user=$jss_cred
+    elif [ $jss_counter == 3 ]; then
+        jss_pass=$jss_cred
+    elif [ $jss_counter == 4 ]; then
+        jss_group_id=$jss_cred
+    fi
+    jss_counter=$((jss_counter+=1))
+done
+
+# Define local variables
+search_base=$7
+computers_ou=$8
 
 # Define functions
 function bindToAD {
     # Initial binding operation
-    dsconfigad -a $(scutil --get LocalHostName) -username "ad_access" -password "jive-W1ne-bates" -ou "OU=Computers GPO push,DC=ad,DC=thebernardgroup,DC=com" -domain "ad.thebernardgroup.com" -mobile enable -mobileconfirm disable -localhome enable -useuncpath enable -groups "Domain Admins,Enterprise Admins" -alldomains enable -force
+    dsconfigad -a "$computer_name" -username "$ad_user" -password "$ad_pass" -ou "$computers_ou" -domain "$ad_domain" -mobile enable -mobileconfirm disable -localhome enable -useuncpath enable -groups "Domain Admins,Enterprise Admins" -alldomains enable -force
 
     # Two-step process to bounce the Domain Admins & Enterprise Admins AD groups to enable those users to log in
     dsconfigad -nogroups
@@ -32,7 +71,7 @@ serial=`ioreg -c IOPlatformExpertDevice -d 2 | awk -F\" '/IOPlatformSerialNumber
 
 # Get the asset tag matching the local serial number from Snipe-It asset management
 printf "Getting the asset tag matching the local serial number from asset management.\n"
-asset_name=`curl -u $fsAPIKey: -X GET "$fsURL?field=serial_number&q=$serial" -H 'Content-Type: application/json' | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["config_items"][0]["name"]'`
+asset_name=`curl -u $fs_api_key: -X GET "https://$fs_url?field=serial_number&q=$serial" -H 'Content-Type: application/json' | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["config_items"][0]["name"]'`
 
 # Set the local hostname
 echo "Setting the local hostname to match this machine's asset tag.\n"
@@ -41,24 +80,30 @@ for nameType in "${names[@]}"
 do
     scutil --set $nameType "$asset_name"
 done
-thisComputerName=`scutil --get ComputerName`
+computer_name=`scutil --get ComputerName`
+
+# Define the XML to update this Mac's name in its JSS computer record via API calls
+mac_name_xml="<computer><general><name>$computer_name</name></general></computer>"
+
+# Update the JSS computer record for this Mac with its correct name
+curl -sku $jss_user:$jss_pass https://$jss_ul/JSSResource/computers/serialnumber/$serial -X PUT -H Content-type:application/xml --data $mac_name_xml
 
 # Define the XML to identify this Mac when adding it to and removing it from static computer groups via API calls
-mac_xml="<computer_group><computer_additions><computer><name>$thisComputerName</name></computer></computer_additions></computer_group>"
+mac_groupadd_xml="<computer_group><computer_additions><computer><name>$computer_name</name></computer></computer_additions></computer_group>"
 
 # Add this Mac to the specified static computer group
 echo "Scoping this Mac to install the Login Window Prefs configuration profile.\n"
-curl -sku $jss_user:$jss_pass https://$jss/JSSResource/computergroups/id/$group_id -X PUT -H Content-type:application/xml --data $mac_xml
+curl -sku $jss_user:$jss_pass https://$jss_ul/JSSResource/computergroups/id/$jss_group_id -X PUT -H Content-type:application/xml --data $mac_groupadd_xml
 
 # Determine if this Mac has an existing AD account
-existsInAD=$(ldapsearch -LLL -h $domain -x -D $4@$domain -w $5 -b $searchBase name=$thisComputerName | grep name | awk '{print toupper($2)}')
+existsInAD=$(ldapsearch -LLL -h $ad_domain -x -D $ad_user@$ad_domain -w $5 -b $search_base name=$computer_name | grep name | awk '{print toupper($2)}')
 
 # Delete the existing AD account if one exists and then bind it to AD, otherwise just bind it to AD
 echo "Determine if this Mac exists in AD.\n"
-if [ $existsInAD == $thisComputerName ]
+if [ $existsInAD == $computer_name ]
 then
     echo "Forcibly removing this Mac from AD.\n"
-    dsconfigad -force -remove -username $4 -password $5
+    dsconfigad -force -remove -username $ad_user -password $ad_pass
     echo "Binding this Mac to AD.\n"
     bindToAD
 else
@@ -67,7 +112,7 @@ else
 fi
 
 # Fix NetBIOSName
-defaults write /Library/Preferences/SystemConfiguration/com.apple.smb.server.plist NetBIOSName -string "$thisComputerName"
+defaults write /Library/Preferences/SystemConfiguration/com.apple.smb.server.plist NetBIOSName -string "$computer_name"
 
 # Define array of policy IDs
 declare -a policies=("7"     # NoMAD

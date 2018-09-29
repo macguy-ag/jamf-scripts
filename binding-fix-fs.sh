@@ -9,7 +9,12 @@ computersOU="OU=Computers GPO push,DC=ad,DC=thebernardgroup,DC=com"
 
 # Define functions
 function bindToAD {
+    # Initial binding operation
     dsconfigad -a $(scutil --get LocalHostName) -username "ad_access" -password "jive-W1ne-bates" -ou "OU=Computers GPO push,DC=ad,DC=thebernardgroup,DC=com" -domain "ad.thebernardgroup.com" -mobile enable -mobileconfirm disable -localhome enable -useuncpath enable -groups "Domain Admins,Enterprise Admins" -alldomains enable -force
+
+    # Two-step process to bounce the Domain Admins & Enterprise Admins AD groups to enable those users to log in
+    dsconfigad -nogroups
+    dsconfigad -groups "Domain Admins,Enterprise Admins"
 }
 
 # Get local serial number and store it in a variable
